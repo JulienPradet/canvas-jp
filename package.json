@@ -1,0 +1,37 @@
+{
+  "name": "canvas-jp",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./angle": "./src/angle.js",
+    "./distance": "./src/distance.js",
+    "./transform": "./src/transform.js",
+    "./position": "./src/position.js",
+    "./Color": "./src/Color.js",
+    "./Clip": "./src/Clip.js",
+    "./Shape": "./src/Shape.js",
+    "./Polygon": "./src/Polygon.js",
+    "./Circle": "./src/Circle.js",
+    "./Point": "./src/Point.js",
+    "./Line": "./src/Line.js",
+    "./ease": "./src/ease.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "canvas-sketch-util": "^1.10.0",
+    "jszip": "^3.7.1",
+    "tweakpane": "^3.0.7"
+  },
+  "devDependencies": {
+    "eslint": "^8.1.0",
+    "prettier": "^2.4.1"
+  }
+}
