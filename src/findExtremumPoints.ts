@@ -1,9 +1,12 @@
 import { angle } from "./angle";
 import { distanceFromRotatedAbscissa } from "./distance";
-import { Point } from "./Point";
+import { CanvasJpPoint, CanvasJpWeightedPoint, Point } from "./Point";
 
-export const findExtremumPointsIndex = (points, axisAngle = 0) => {
-  if (!Array.isArray(points) || points.length < 0) {
+export const findExtremumPointsIndex = (
+  points: CanvasJpPoint[],
+  axisAngle = 0
+): [CanvasJpPoint, CanvasJpPoint] => {
+  if (points.length <= 0) {
     throw new Error("Can't find lowest point when no point is given.");
   }
 
@@ -15,7 +18,7 @@ export const findExtremumPointsIndex = (points, axisAngle = 0) => {
     shouldInvert = true;
   }
 
-  const getPointDistance = (point) => {
+  const getPointDistance = (point: CanvasJpPoint): number => {
     let pointDistance = distanceFromRotatedAbscissa(point, normalizedAngle);
     let pointAngle = angle(Point(0, 0), point);
     if (
@@ -70,7 +73,7 @@ export const findExtremumPointsIndex = (points, axisAngle = 0) => {
     minToMaxVector.x * Math.cos(axisAngle) +
     minToMaxVector.y * Math.sin(axisAngle);
 
-  const result = [
+  const result: [CanvasJpPoint, CanvasJpPoint] = [
     points[indexes[0]],
     Point(
       dotProductWithAngle * Math.cos(axisAngle) + points[indexes[0]].x,
@@ -78,5 +81,5 @@ export const findExtremumPointsIndex = (points, axisAngle = 0) => {
     ),
   ];
 
-  return shouldInvert ? result.reverse() : result;
+  return shouldInvert ? [result[1], result[0]] : result;
 };

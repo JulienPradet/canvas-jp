@@ -1,19 +1,70 @@
 import { angle } from "./angle";
 import { distance } from "./distance";
 import { findExtremumPointsIndex } from "./findExtremumPoints";
-import { translateVector } from "./transform";
+import { CanvasJpTranslate, translateVector } from "./transform";
 import { debug, debugPosition } from "./debug";
-import { cyan, red } from "./Color";
+import {
+  CanvasJpColorHsv,
+  CanvasJpGradient,
+  CanvasJpRadialGradient,
+  cyan,
+  red,
+} from "./Color";
 import { initTick, tick } from "./tick";
 import { Polygon } from "./Polygon";
-import { Point } from "./Point";
+import { CanvasJpPoint, Point } from "./Point";
+import { CanvasJpSharpShape, CanvasJpSmoothShape } from "./Shape";
+import { CanvasJpArc } from "./Circle";
+import { CanvasJpSharpLine, CanvasJpSmoothLine } from "./Line";
+import { CanvasJpClip } from "./Clip";
+import { CanvasJpClickRegion } from "./interaction";
+
+export type CanvasJpFill = {
+  color: CanvasJpColorHsv;
+  opacity: number;
+};
+export type CanvasJpStroke = {
+  color: CanvasJpColorHsv;
+  opacity: number;
+  style: "round" | null;
+  width: number;
+};
+export type CanvasJpDrawable =
+  | CanvasJpSharpShape
+  | CanvasJpSmoothShape
+  | CanvasJpArc
+  | CanvasJpSharpLine
+  | CanvasJpSmoothLine
+  | CanvasJpClip
+  | CanvasJpTranslate
+  | CanvasJpClickRegion;
+
+export type CanvasJpFrameDefinition = {
+  background?: CanvasJpColorHsv;
+  border?: CanvasJpStroke;
+  elements: CanvasJpDrawable[];
+};
 
 export const draw = async (
-  ctx,
-  { background, border, elements },
-  { width, height, resolution }
+  ctx: CanvasRenderingContext2D,
+  { background, border, elements }: CanvasJpFrameDefinition,
+  {
+    width,
+    height,
+    resolution,
+  }: { width: number; height: number; resolution: number }
 ) => {
-  const getShapePoints = (shape, angle) => {
+  type StylableShape =
+    | CanvasJpSharpShape
+    | CanvasJpSmoothShape
+    | CanvasJpSharpLine
+    | CanvasJpSmoothLine
+    | CanvasJpArc;
+
+  const getShapePoints = (
+    shape: StylableShape,
+    angle: number
+  ): CanvasJpPoint[] => {
     if (
       shape.__type === "Shape" ||
       shape.__type === "SmoothShape" ||
@@ -35,7 +86,11 @@ export const draw = async (
       throw new Error("not implemented yet");
     }
   };
-  const getStyle = (color, shape) => {
+
+  const getStyle = (
+    color: CanvasJpColorHsv | CanvasJpGradient | CanvasJpRadialGradient,
+    shape: StylableShape
+  ): string | CanvasGradient => {
     if (color.__type === "Gradient") {
       const points = getShapePoints(shape, color.angle);
       const [lowest, highest] = findExtremumPointsIndex(points, color.angle);
@@ -51,7 +106,6 @@ export const draw = async (
       });
       return gradient;
     } else if (color.__type === "RadialGradient") {
-      console.log(color);
       const gradient = ctx.createRadialGradient(
         color.center.x,
         color.center.y,
@@ -69,7 +123,11 @@ export const draw = async (
       return color.hex();
     }
   };
-  const setStrokeStyle = (stroke, shape) => {
+
+  const setStrokeStyle = (
+    stroke: CanvasJpStroke,
+    shape: StylableShape
+  ): void => {
     ctx.globalAlpha = stroke.opacity || 1;
     ctx.strokeStyle = getStyle(stroke.color, shape);
     ctx.lineWidth = stroke.width;
@@ -77,12 +135,16 @@ export const draw = async (
     ctx.lineJoin = stroke.style || "miter";
   };
 
-  const setFillStyle = (fill, shape) => {
-    ctx.globalAlpha = fill.opacity || 1;
+  const setFillStyle = (fill: CanvasJpFill, shape: StylableShape): void => {
+    ctx.globalAlpha = Number.isNaN(fill.opacity) ? 1 : fill.opacity;
     ctx.fillStyle = getStyle(fill.color, shape);
   };
 
-  const drawLine = (line) => {
+  const drawLine = (line: CanvasJpSharpLine): void => {
+    if (!line.stroke) {
+      return;
+    }
+
     ctx.beginPath();
     ctx.moveTo(line.start.x, line.start.y);
     ctx.lineTo(line.end.x, line.end.y);
@@ -91,20 +153,28 @@ export const draw = async (
     ctx.stroke();
   };
 
-  const drawSmoothLine = (line) => {
+  const drawSmoothLine = (line: CanvasJpSmoothLine): void => {
+    if (!line.stroke) {
+      return;
+    }
+
     smoothPath(line);
 
     setStrokeStyle(line.stroke, line);
     ctx.stroke();
   };
 
-  const drawShape = (shape) => {
+  const doShapePath = (shape: CanvasJpSharpShape): void => {
     ctx.beginPath();
     ctx.moveTo(shape.points[0].x, shape.points[0].y);
     shape.points.slice(1).forEach((point) => {
       ctx.lineTo(point.x, point.y);
     });
     ctx.closePath();
+  };
+
+  const drawShape = (shape: CanvasJpSharpShape): void => {
+    doShapePath(shape);
 
     if (shape.fill) {
       setFillStyle(shape.fill, shape);
@@ -117,10 +187,11 @@ export const draw = async (
     }
   };
 
-  const smoothPath = (shape) => {
-    let controlPoints = new Array(shape.points.length - 1)
-      .fill(null)
-      .map(() => [null, null]);
+  const smoothPath = (
+    shape: CanvasJpSmoothShape | CanvasJpSmoothLine
+  ): void => {
+    let controlPoints: [CanvasJpPoint | null, CanvasJpPoint | null][] =
+      new Array(shape.points.length - 1).fill(null).map(() => [null, null]);
 
     const firstPoint = shape.points[0];
     controlPoints[0][0] =
@@ -169,14 +240,17 @@ export const draw = async (
     ctx.beginPath();
     ctx.moveTo(shape.points[0].x, shape.points[0].y);
     shape.points.slice(1).forEach((point, index) => {
-      ctx.bezierCurveTo(
-        controlPoints[index][0].x,
-        controlPoints[index][0].y,
-        controlPoints[index][1].x,
-        controlPoints[index][1].y,
-        point.x,
-        point.y
-      );
+      if (
+        controlPoints[index][0] === null ||
+        controlPoints[index][1] === null
+      ) {
+        throw new Error("Not implemented yet.");
+      }
+
+      const prev = controlPoints[index][0] as CanvasJpPoint;
+      const next = controlPoints[index][1] as CanvasJpPoint;
+
+      ctx.bezierCurveTo(prev.x, prev.y, next.x, next.y, point.x, point.y);
     });
 
     if (debug) {
@@ -185,14 +259,18 @@ export const draw = async (
         debugPosition(ctx, point.x, point.y, cyan);
       });
       controlPoints.forEach(([a, b]) => {
-        debugPosition(ctx, a.x, a.y, red);
-        debugPosition(ctx, b.x, b.y, red);
+        if (a) {
+          debugPosition(ctx, a.x, a.y, red);
+        }
+        if (b) {
+          debugPosition(ctx, b.x, b.y, red);
+        }
       });
       ctx.restore();
     }
   };
 
-  const drawSmoothShape = (shape) => {
+  const drawSmoothShape = (shape: CanvasJpSmoothShape): void => {
     smoothPath(shape);
     ctx.closePath();
 
@@ -207,7 +285,7 @@ export const draw = async (
     }
   };
 
-  const drawArc = (arc) => {
+  const drawArc = (arc: CanvasJpArc): void => {
     ctx.beginPath();
     ctx.arc(
       arc.center.x,
@@ -226,9 +304,9 @@ export const draw = async (
     }
   };
 
-  const drawClip = (clip) => {
+  const drawClip = (clip: CanvasJpClip): void => {
     ctx.save();
-    drawElements([clip.shape], ctx);
+    drawElements([clip.shape]);
     ctx.clip();
 
     drawElements(clip.elements);
@@ -236,7 +314,26 @@ export const draw = async (
     ctx.restore();
   };
 
-  const drawElements = (elements) => {
+  const drawTranslate = (translate: CanvasJpTranslate): void => {
+    ctx.save();
+
+    ctx.translate(translate.x, translate.y);
+
+    drawElements(translate.elements);
+
+    ctx.restore();
+  };
+
+  const drawClickRegion = () => {
+    console.warn("Not implemented yet. addHitRegion not supported?");
+    // ctx.save();
+
+    // doShapePath({ points: clickRegion.points });
+    // ctx.addHitRegion({ id: "circle" });
+    // ctx.restore();
+  };
+
+  const drawElements = (elements: CanvasJpDrawable[]) => {
     elements.forEach((element) => {
       if (debug) {
         console.group("Element", element.__type);
@@ -254,8 +351,10 @@ export const draw = async (
         drawArc(element);
       } else if (element.__type === "Clip") {
         drawClip(element);
-      } else if (Array.isArray(element)) {
-        throw new Error("Forgot to spread your elements", element);
+      } else if (element.__type === "Translate") {
+        drawTranslate(element);
+      } else if (element.__type === "ClickRegion") {
+        drawClickRegion();
       }
 
       if (debug) {
@@ -279,19 +378,19 @@ export const draw = async (
     Point(0, height),
     Point(width, height),
     Point(width, 0),
-  ]);
+  ]).toShape();
   if (border) {
-    setFillStyle({ color: border.color }, globalShape);
+    setFillStyle({ color: border.color, opacity: 1 }, globalShape);
     ctx.fillRect(0, 0, width, height);
   }
 
   if (background) {
-    setFillStyle({ color: background }, globalShape);
+    setFillStyle({ color: background, opacity: 1 }, globalShape);
     const margin = border?.width || 0;
     ctx.fillRect(margin, margin, width - margin * 2, height - margin * 2);
   }
 
-  drawElements(elements, true);
+  drawElements(elements);
 
   if (debug) {
     console.groupEnd();

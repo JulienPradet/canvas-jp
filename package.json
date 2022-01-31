@@ -3,35 +3,53 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.d.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "dist/index.d.ts": [
+        "dist/index.d.ts"
+      ],
+      "*": [
+        "dist/*"
+      ]
+    }
+  },
   "exports": {
-    ".": "./src/index.js",
-    "./angle": "./src/angle.js",
-    "./distance": "./src/distance.js",
-    "./transform": "./src/transform.js",
-    "./position": "./src/position.js",
-    "./Color": "./src/Color.js",
-    "./Clip": "./src/Clip.js",
-    "./Shape": "./src/Shape.js",
-    "./Polygon": "./src/Polygon.js",
-    "./Circle": "./src/Circle.js",
-    "./Point": "./src/Point.js",
-    "./Line": "./src/Line.js",
-    "./ease": "./src/ease.js"
+    ".": "./dist/index.js",
+    "./angle": "./dist/angle.js",
+    "./distance": "./dist/distance.js",
+    "./transform": "./dist/transform.js",
+    "./position": "./dist/position.js",
+    "./Color": "./dist/Color.js",
+    "./Clip": "./dist/Clip.js",
+    "./Shape": "./dist/Shape.js",
+    "./Polygon": "./dist/Polygon.js",
+    "./Circle": "./dist/Circle.js",
+    "./Point": "./dist/Point.js",
+    "./Line": "./dist/Line.js",
+    "./Pixel": "./dist/Pixel.js",
+    "./interaction": "./dist/interaction.js",
+    "./ease": "./dist/ease.js"
   },
   "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsc --declaration",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@tweakpane/core": "^1.0.8",
     "canvas-sketch-util": "^1.10.0",
     "jszip": "^3.7.1",
     "tweakpane": "^3.0.7"
   },
   "devDependencies": {
+    "esbuild": "^0.14.13",
     "eslint": "^8.1.0",
-    "prettier": "^2.4.1"
+    "prettier": "^2.4.1",
+    "typescript": "^4.5.5"
   }
 }

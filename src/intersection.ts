@@ -1,9 +1,18 @@
 import { maxDistance } from "./constants";
 import { distance } from "./distance";
-import { Line } from "./Line";
-import { isPointEqual, Point } from "./Point";
+import { CanvasJpEdge } from "./edges";
+import { CanvasJpSharpLine, Line } from "./Line";
+import {
+  CanvasJpPoint,
+  CanvasJpWeightedPoint,
+  isPointEqual,
+  Point,
+} from "./Point";
 
-export const getIntersection = (lineA, lineB) => {
+export const getIntersection = (
+  lineA: CanvasJpEdge,
+  lineB: CanvasJpEdge
+): CanvasJpWeightedPoint | null => {
   // Check if none of the lines are of length 0
   if (
     (lineA.start.x === lineA.end.x && lineA.start.y === lineA.end.y) ||
@@ -42,7 +51,12 @@ export const getIntersection = (lineA, lineB) => {
   return Point(x, y);
 };
 
-export const findIntersection = (edges, start, angle, excludedOptions = []) => {
+export const findIntersection = (
+  edges: CanvasJpEdge[],
+  start: CanvasJpPoint,
+  angle: number,
+  excludedOptions: CanvasJpPoint[] = []
+): CanvasJpPoint | null => {
   const end = Point(
     start.x + maxDistance * Math.cos(angle),
     start.y + maxDistance * Math.sin(angle)
@@ -58,12 +72,14 @@ export const findIntersection = (edges, start, angle, excludedOptions = []) => {
     })
     .filter(Boolean)
     .filter((intersection) =>
-      excludedOptions.every((option) => !isPointEqual(option, intersection))
+      excludedOptions.every(
+        (option) => !isPointEqual(option, intersection as CanvasJpWeightedPoint)
+      )
     )
     .map((intersection) => {
       return {
         intersection,
-        distance: distance(start, intersection),
+        distance: distance(start, intersection as CanvasJpWeightedPoint),
       };
     });
 

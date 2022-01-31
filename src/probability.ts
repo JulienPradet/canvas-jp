@@ -1,4 +1,14 @@
-export const normalizeProbability = (types) => {
+interface CanvasJpProbabilityType {
+  probability: number;
+}
+
+interface CanvasJpProbabilities {
+  [key: string]: CanvasJpProbabilityType;
+}
+
+export const normalizeProbability = (
+  types: CanvasJpProbabilities
+): CanvasJpProbabilities => {
   const totalProbability = Object.values(types).reduce(
     (acc, { probability }) => acc + probability,
     0
@@ -7,12 +17,19 @@ export const normalizeProbability = (types) => {
   Object.keys(types).forEach((key) => {
     types[key].probability = types[key].probability / totalProbability;
   });
+
   return types;
 };
 
-export const getWithProbability = (types, amount) => {
+export const getWithProbability = (
+  types: CanvasJpProbabilities,
+  amount: number
+): CanvasJpProbabilityType => {
   const numberOfTypes = Object.keys(types).length;
-  const selected = Object.values(types).reduce(
+  const selected = Object.values(types).reduce<{
+    total: number;
+    element: CanvasJpProbabilityType | null;
+  }>(
     (result, element, index) => {
       let total = result.total + element.probability;
       if (result.element) {
@@ -27,5 +44,5 @@ export const getWithProbability = (types, amount) => {
     },
     { total: 0, element: null }
   );
-  return selected.element;
+  return selected.element as CanvasJpProbabilityType;
 };

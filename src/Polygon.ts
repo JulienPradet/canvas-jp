@@ -1,10 +1,17 @@
 import random from "canvas-sketch-util/random";
+import { CanvasJpFill, CanvasJpStroke } from "./draw";
 import { getIntersection } from "./intersection";
-import { Line } from "./Line";
-import { Point } from "./Point";
-import { Shape } from "./Shape";
+import { CanvasJpSharpLine, Line } from "./Line";
+import { CanvasJpPoint, CanvasJpWeightedPoint, Point } from "./Point";
+import { CanvasJpSharpShape, Shape } from "./Shape";
 
-export const Polygon = (points) => {
+export type CanvasJpPolygon = {
+  __type: "Polygon";
+  points: CanvasJpPoint[];
+  toShape: (fill?: CanvasJpFill, stroke?: CanvasJpStroke) => CanvasJpSharpShape;
+};
+
+export const Polygon = (points: CanvasJpPoint[]): CanvasJpPolygon => {
   return {
     __type: "Polygon",
     points,
@@ -14,7 +21,12 @@ export const Polygon = (points) => {
   };
 };
 
-export const PolygonFromRect = (x, y, width, height) => {
+export const PolygonFromRect = (
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): CanvasJpPolygon => {
   return Polygon([
     Point(x, y),
     Point(x + width, y),
@@ -23,7 +35,12 @@ export const PolygonFromRect = (x, y, width, height) => {
   ]);
 };
 
-export const PolygonFromCircle = (center, radius, numberOfEdges, phase = 0) => {
+export const PolygonFromCircle = (
+  center: CanvasJpPoint,
+  radius: number,
+  numberOfEdges: number,
+  phase = 0
+): CanvasJpPolygon => {
   return Polygon(
     new Array(numberOfEdges).fill(null).map((_, index) => {
       return Point(
@@ -36,7 +53,11 @@ export const PolygonFromCircle = (center, radius, numberOfEdges, phase = 0) => {
   );
 };
 
-export const polygonArea = ({ points }) => {
+export const polygonArea = ({
+  points,
+}: {
+  points: CanvasJpPoint[];
+}): number => {
   let area = 0; // Accumulates area
 
   let j = points.length - 1;
@@ -47,7 +68,9 @@ export const polygonArea = ({ points }) => {
   return Math.abs(area / 2);
 };
 
-export const polygonCenter = (polygon) => {
+export const polygonCenter = (
+  polygon: CanvasJpPolygon
+): CanvasJpWeightedPoint => {
   // X = SUM[(Xi + Xi+1) * (Xi * Yi+1 - Xi+1 * Yi)] / 6 / A
   // Y = SUM[(Yi + Yi+1) * (Xi * Yi+1 - Xi+1 * Yi)] / 6 / A
   let centerX = 0;
@@ -66,18 +89,24 @@ export const polygonCenter = (polygon) => {
   return Point(centerX / 6 / currentArea, centerY / 6 / currentArea);
 };
 
-export const polygonLines = (polygon, stroke, width, rounded) => {
+export const polygonLines = (
+  polygon: CanvasJpPolygon,
+  stroke: CanvasJpStroke
+): CanvasJpSharpLine[] => {
   return polygon.points.map((_, index) => {
     const start =
       polygon.points[
         (index - 1 + polygon.points.length) % polygon.points.length
       ];
     const end = polygon.points[index];
-    return Line(start, end, stroke, width, rounded);
+    return Line(start, end, stroke);
   });
 };
 
-export const isInPolygon = (polygon, point) => {
+export const isInPolygon = (
+  polygon: CanvasJpPolygon,
+  point: CanvasJpPoint
+): boolean => {
   const longLine = Line(Point(-100, -100), point);
   let numberOfIntersections = 0;
   for (let i = 0; i < polygon.points.length; i++) {
@@ -98,7 +127,9 @@ export const isInPolygon = (polygon, point) => {
   return numberOfIntersections % 2 === 1;
 };
 
-export const sampleInPolygon = (polygon) => {
+export const sampleInPolygon = (
+  polygon: CanvasJpPolygon
+): CanvasJpWeightedPoint => {
   // Let's not care about perf for now
   const xValues = polygon.points.map((p) => p.x);
   const yValues = polygon.points.map((p) => p.y);

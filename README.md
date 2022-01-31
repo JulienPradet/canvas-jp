@@ -40,3 +40,20 @@ canvasJp(
   }
 );
 ```
+
+## Install
+
+This package is not released on npm. If you ever need to use it, please clone the repo and then run the following commands:
+
+```
+npm install
+npm run build
+```
+
+You can then use the repo within another project by setting up your dependency like this in your `package.json`:
+
+```
+  "dependencies": {
+    "canvas-jp": "file:../../canvas-jp",
+  }
+```

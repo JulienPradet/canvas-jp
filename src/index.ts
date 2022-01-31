@@ -2,12 +2,28 @@ import random from "canvas-sketch-util/random";
 import JSZip from "jszip";
 import { setMaxDistance } from "./constants";
 import { debug, toggleDebug } from "./debug";
-import { draw } from "./draw";
+import { CanvasJpFrameDefinition, CanvasJpDrawable, draw } from "./draw";
 import { Pane } from "tweakpane";
 
-export async function canvasJp(
-  container,
-  frameDefinition,
+type CanvasJpOptions = {
+  width: number;
+  height: number;
+  resolution: number;
+  title: string;
+  animation: boolean;
+  numberOfFrames: number;
+  loop: boolean;
+  exportSketch: boolean;
+  embed: boolean;
+};
+
+export async function canvasJp<Options = null>(
+  container: HTMLElement,
+  frameDefinition: (
+    t: number,
+    frame: number,
+    options: Options | null
+  ) => Promise<CanvasJpFrameDefinition> | CanvasJpFrameDefinition,
   {
     height,
     width,
@@ -18,14 +34,14 @@ export async function canvasJp(
     loop = false,
     exportSketch = true,
     embed = false,
-  },
-  makeStableOptions = () => ({})
+  }: CanvasJpOptions,
+  makeStableOptions?: (pane: Pane | null, paneOptions: Options) => Options
 ) {
   if (embed) {
     exportSketch = false;
   }
 
-  const initialSeed = localStorage.getItem("lockedSeed");
+  const initialSeed = Number(localStorage.getItem("lockedSeed"));
   let isSeedLocked = Boolean(initialSeed);
   const seedsHistory = [initialSeed || random.getRandomSeed()];
   let seedIndex = 0;
@@ -42,7 +58,7 @@ export async function canvasJp(
     document.body.appendChild(seedElement);
   }
 
-  let pane;
+  let pane: Pane | null = null;
   if (embed) {
     pane = new Pane();
   }
@@ -57,16 +73,21 @@ export async function canvasJp(
   }px) scale(${1 / resolution}, ${1 / resolution})`;
 
   const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Failed to initialize canvas context");
+  }
+
   let start = performance.now();
   let current = start;
   let pause = false;
-  let exportedUrls = [];
+  let exportedUrls: string[] = [];
 
-  let options;
-  let paneOptions = {};
+  let options: Options | null;
+  let paneOptions: Options;
 
-  const frame = async (t, frameNumber, looping) => {
-    if (!options) {
+  const frame = async (t = 0, frameNumber = 0, looping = false) => {
+    if (!options && makeStableOptions) {
       options = makeStableOptions(pane, paneOptions);
     }
     if (!t) {
@@ -98,7 +119,9 @@ export async function canvasJp(
       if (animation) {
         if (frameNumber >= numberOfFrames) {
           if (loop) {
-            options = makeStableOptions(pane, paneOptions);
+            if (makeStableOptions) {
+              options = makeStableOptions(pane, paneOptions);
+            }
             frame(current - start, 0, true);
           } else {
             console.log("done.", t, frameNumber);
@@ -149,13 +172,13 @@ export async function canvasJp(
   };
 
   const lockSeed = () => {
-    localStorage.setItem("lockedSeed", seedsHistory[seedIndex]);
+    localStorage.setItem("lockedSeed", seedsHistory[seedIndex].toString());
     isSeedLocked = true;
   };
   const unlockSeed = () => {
     localStorage.removeItem("lockedSeed");
   };
-  const pushNewSeed = (withOptions = null) => {
+  const pushNewSeed = (withOptions: Options | null = null) => {
     if (isSeedLocked) {
       return;
     }
@@ -185,17 +208,19 @@ export async function canvasJp(
       pushNewSeed();
     });
   }
+
   window.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
 
     const paneElement = pane?.element;
-    if (paneElement?.contains(event.target)) {
+    if (paneElement?.contains(event.target as Node)) {
       return;
     }
 
     pushNewSeed();
   });
+
   window.addEventListener("keydown", (event) => {
     if (event.key === "s" && event.ctrlKey) {
       event.preventDefault();
@@ -244,3 +269,5 @@ export async function canvasJp(
 
   await frame(0, 0);
 }
+
+export { CanvasJpFrameDefinition, CanvasJpDrawable, CanvasJpOptions };
