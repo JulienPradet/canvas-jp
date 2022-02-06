@@ -334,9 +334,7 @@ export const draw = async (
 
   const drawClip = (clip: CanvasJpClip): void => {
     ctx.save();
-    if (clip.inverted) {
-      ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    }
+
     drawElements([clip.shape]);
     ctx.clip();
 
