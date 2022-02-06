@@ -10,7 +10,7 @@ export type CanvasJpClip = {
 export const Clip = (
   shape: CanvasJpSharpShape,
   elements: CanvasJpDrawable[]
-) => {
+): CanvasJpClip => {
   return {
     __type: "Clip",
     shape,

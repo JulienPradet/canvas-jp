@@ -1,7 +1,7 @@
 import { angle } from "./angle";
 import { distance } from "./distance";
 import { findExtremumPointsIndex } from "./findExtremumPoints";
-import { CanvasJpTranslate, translateVector } from "./transform";
+import { CanvasJpTranslate, translate, translateVector } from "./transform";
 import { debug, debugPosition } from "./debug";
 import {
   CanvasJpColorHsv,
@@ -18,6 +18,8 @@ import { CanvasJpArc } from "./Circle";
 import { CanvasJpSharpLine, CanvasJpSmoothLine } from "./Line";
 import { CanvasJpClip } from "./Clip";
 import { CanvasJpClickRegion } from "./interaction";
+import { CanvasJpSeed } from "./Seed";
+import { CanvasJpRandom } from ".";
 
 export type CanvasJpFill = {
   color: CanvasJpColorHsv;
@@ -37,7 +39,8 @@ export type CanvasJpDrawable =
   | CanvasJpSmoothLine
   | CanvasJpClip
   | CanvasJpTranslate
-  | CanvasJpClickRegion;
+  | CanvasJpClickRegion
+  | CanvasJpSeed;
 
 export type CanvasJpFrameDefinition = {
   background?: CanvasJpColorHsv;
@@ -52,8 +55,20 @@ export const draw = async (
     width,
     height,
     resolution,
-  }: { width: number; height: number; resolution: number }
+    setSeed,
+  }: {
+    width: number;
+    height: number;
+    resolution: number;
+    setSeed: (id: number) => {
+      random: CanvasJpRandom;
+      reset: () => void;
+    };
+  },
+  svgContainer: HTMLElement | null
 ) => {
+  let currentTranslate: { x: number; y: number } = { x: 0, y: 0 };
+
   type StylableShape =
     | CanvasJpSharpShape
     | CanvasJpSmoothShape
@@ -171,6 +186,19 @@ export const draw = async (
       ctx.lineTo(point.x, point.y);
     });
     ctx.closePath();
+  };
+
+  const doSvgShapePath = (points: CanvasJpPoint[]): string => {
+    let string = "";
+    string += `M${points[0].x + currentTranslate.x} ${
+      points[0].y + currentTranslate.y
+    }`;
+    points.slice(1).forEach((point) => {
+      string += ` L${point.x + currentTranslate.x} ${
+        point.y + currentTranslate.y
+      }`;
+    });
+    return string + " z";
   };
 
   const drawShape = (shape: CanvasJpSharpShape): void => {
@@ -306,6 +334,9 @@ export const draw = async (
 
   const drawClip = (clip: CanvasJpClip): void => {
     ctx.save();
+    if (clip.inverted) {
+      ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
     drawElements([clip.shape]);
     ctx.clip();
 
@@ -316,21 +347,39 @@ export const draw = async (
 
   const drawTranslate = (translate: CanvasJpTranslate): void => {
     ctx.save();
+    const oldTranslate = currentTranslate;
 
+    currentTranslate = { x: translate.x, y: translate.y };
     ctx.translate(translate.x, translate.y);
 
     drawElements(translate.elements);
 
+    currentTranslate = oldTranslate;
     ctx.restore();
   };
 
-  const drawClickRegion = () => {
-    console.warn("Not implemented yet. addHitRegion not supported?");
-    // ctx.save();
+  const drawClickRegion = (element: CanvasJpClickRegion) => {
+    if (!svgContainer) {
+      throw new Error(
+        'You forgot to set the option "interactive: true" on canvas-jp options.'
+      );
+    }
 
-    // doShapePath({ points: clickRegion.points });
-    // ctx.addHitRegion({ id: "circle" });
-    // ctx.restore();
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", doSvgShapePath(element.points));
+    path.addEventListener("click", (event) => {
+      event.stopPropagation();
+      element.onClick();
+    });
+    svgContainer.appendChild(path);
+  };
+
+  const drawSeed = (seed: CanvasJpSeed) => {
+    const { reset, random } = setSeed(seed.id);
+
+    drawElements(seed.elements(random));
+
+    reset();
   };
 
   const drawElements = (elements: CanvasJpDrawable[]) => {
@@ -354,7 +403,9 @@ export const draw = async (
       } else if (element.__type === "Translate") {
         drawTranslate(element);
       } else if (element.__type === "ClickRegion") {
-        drawClickRegion();
+        drawClickRegion(element);
+      } else if (element.__type === "Seed") {
+        drawSeed(element);
       }
 
       if (debug) {
@@ -367,6 +418,11 @@ export const draw = async (
   initTick();
   if (debug) {
     console.group("Draw");
+  }
+
+  if (svgContainer) {
+    // TODO Remove all listeners before cleaning the existing paths
+    svgContainer.innerHTML = "";
   }
 
   const scaleDirection = -1;

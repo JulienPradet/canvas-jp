@@ -26,5 +26,5 @@ export const getInBetween = (
   end: CanvasJpPoint,
   t: number
 ): CanvasJpWeightedPoint => {
-  return Point(start.x * t + end.x * (1 - t), start.y * t + end.y * (1 - t));
+  return Point(start.x * (1 - t) + end.x * t, start.y * (1 - t) + end.y * t);
 };

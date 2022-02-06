@@ -29,6 +29,7 @@
     "./Point": "./dist/Point.js",
     "./Line": "./dist/Line.js",
     "./Pixel": "./dist/Pixel.js",
+    "./Seed": "./dist/Seed.js",
     "./interaction": "./dist/interaction.js",
     "./ease": "./dist/ease.js"
   },

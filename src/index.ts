@@ -15,6 +15,18 @@ type CanvasJpOptions = {
   loop: boolean;
   exportSketch: boolean;
   embed: boolean;
+  interactive: boolean;
+};
+
+export type CanvasJpRandom = {
+  getSeed: () => number;
+  value: () => number;
+  noise2D: (
+    x: number,
+    y: number,
+    frequency?: number,
+    amplitude?: number
+  ) => number;
 };
 
 export async function canvasJp<Options = null>(
@@ -22,6 +34,7 @@ export async function canvasJp<Options = null>(
   frameDefinition: (
     t: number,
     frame: number,
+    random: CanvasJpRandom,
     options: Options | null
   ) => Promise<CanvasJpFrameDefinition> | CanvasJpFrameDefinition,
   {
@@ -34,8 +47,13 @@ export async function canvasJp<Options = null>(
     loop = false,
     exportSketch = true,
     embed = false,
+    interactive = false,
   }: CanvasJpOptions,
-  makeStableOptions?: (pane: Pane | null, paneOptions: Options) => Options
+  makeStableOptions?: (
+    random: CanvasJpRandom,
+    pane: Pane | null,
+    paneOptions: Options
+  ) => Options
 ) {
   if (embed) {
     exportSketch = false;
@@ -45,21 +63,23 @@ export async function canvasJp<Options = null>(
   let isSeedLocked = Boolean(initialSeed);
   const seedsHistory = [initialSeed || random.getRandomSeed()];
   let seedIndex = 0;
-  random.setSeed(seedsHistory[seedIndex]);
+  let currentRandom: CanvasJpRandom = random.createRandom(
+    seedsHistory[seedIndex]
+  );
 
   setMaxDistance(Math.sqrt(Math.pow(width, 2) + Math.pow(height, 2)));
 
   const canvas = document.createElement("canvas");
   container.appendChild(canvas);
 
-  if (embed) {
+  if (!embed) {
     const seedElement = document.createElement("p");
-    seedElement.innerText = `${title}: ${random.getSeed()}`;
+    seedElement.innerText = `${title}: ${currentRandom.getSeed()}`;
     document.body.appendChild(seedElement);
   }
 
   let pane: Pane | null = null;
-  if (embed) {
+  if (!embed) {
     pane = new Pane();
   }
 
@@ -78,6 +98,43 @@ export async function canvasJp<Options = null>(
     throw new Error("Failed to initialize canvas context");
   }
 
+  let svgElement: HTMLElement | null = null;
+  if (interactive && !svgElement) {
+    const div = document.createElement("div");
+    const svgId = Math.round(Math.random() * 10000);
+    div.innerHTML = `<svg
+        viewBox="0 0 ${width} ${height}"
+        width="${width}"
+        height="${height}"
+        xmlns="http://www.w3.org/2000/svg"
+        class="svg-canvas-jp-${svgId}"
+    ></svg>`;
+
+    svgElement = div.children[0] as HTMLElement;
+
+    container.style.position = "relative";
+
+    container.appendChild(svgElement);
+
+    const style = document.createElement("style");
+    style.innerHTML = `
+        .svg-canvas-jp-${svgId} {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            transform: scale(1,-1);
+        }
+        .svg-canvas-jp-${svgId} path {
+            cursor: pointer;
+            user-select: none;
+            fill: transparent;
+        }
+    `;
+    container.appendChild(style);
+  }
+
   let start = performance.now();
   let current = start;
   let pause = false;
@@ -88,7 +145,7 @@ export async function canvasJp<Options = null>(
 
   const frame = async (t = 0, frameNumber = 0, looping = false) => {
     if (!options && makeStableOptions) {
-      options = makeStableOptions(pane, paneOptions);
+      options = makeStableOptions(currentRandom, pane, paneOptions);
     }
     if (!t) {
       start = performance.now();
@@ -98,16 +155,26 @@ export async function canvasJp<Options = null>(
     }
 
     if (debug) {
-      console.log("Seed", random.getRandomSeed());
+      console.log("Seed", currentRandom.getSeed());
     }
     try {
-      const definition = await frameDefinition(t, frameNumber, options);
+      const definition = await frameDefinition(
+        t,
+        frameNumber,
+        currentRandom,
+        options
+      );
 
       if (debug) {
         console.log("drawing...", frameNumber, t);
       }
 
-      await draw(ctx, definition, { height, width, resolution });
+      await draw(
+        ctx,
+        definition,
+        { height, width, resolution, setSeed: setSeed },
+        svgElement
+      );
 
       if (!looping && exportSketch) {
         exportedUrls.push(canvas.toDataURL("image/png"));
@@ -120,7 +187,7 @@ export async function canvasJp<Options = null>(
         if (frameNumber >= numberOfFrames) {
           if (loop) {
             if (makeStableOptions) {
-              options = makeStableOptions(pane, paneOptions);
+              options = makeStableOptions(currentRandom, pane, paneOptions);
             }
             frame(current - start, 0, true);
           } else {
@@ -157,7 +224,7 @@ export async function canvasJp<Options = null>(
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${title}-${random.getSeed()}.zip`;
+        a.download = `${title}-${currentRandom.getSeed()}.zip`;
         a.click();
         window.URL.revokeObjectURL(url);
       });
@@ -165,7 +232,7 @@ export async function canvasJp<Options = null>(
       const url = exportedUrls[0];
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${title}-${random.getSeed()}.png`;
+      a.download = `${title}-${currentRandom.getSeed()}.png`;
       a.click();
       window.URL.revokeObjectURL(url);
     }
@@ -185,21 +252,32 @@ export async function canvasJp<Options = null>(
 
     seedsHistory.push(random.getRandomSeed());
     seedIndex = seedsHistory.length - 1;
-    random.setSeed(seedsHistory[seedIndex]);
+    currentRandom = random.createRandom(seedsHistory[seedIndex]);
     options = withOptions;
     frame();
   };
   const loadPreviousSeed = () => {
     seedIndex--;
-    random.setSeed(seedsHistory[seedIndex]);
+    currentRandom = random.createRandom(seedsHistory[seedIndex]);
     options = null;
     frame();
   };
   const loadNextSeed = () => {
     seedIndex++;
-    random.setSeed(seedsHistory[seedIndex]);
+    currentRandom = random.createRandom(seedsHistory[seedIndex]);
     options = null;
     frame();
+  };
+  const setSeed = (seed: number) => {
+    let previousRandom = currentRandom;
+
+    currentRandom = random.createRandom(seed);
+    return {
+      random: currentRandom,
+      reset: () => {
+        currentRandom = previousRandom;
+      },
+    };
   };
 
   if (pane) {
@@ -209,63 +287,65 @@ export async function canvasJp<Options = null>(
     });
   }
 
-  window.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const paneElement = pane?.element;
-    if (paneElement?.contains(event.target as Node)) {
-      return;
-    }
-
-    pushNewSeed();
-  });
-
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "s" && event.ctrlKey) {
+  if (!embed) {
+    window.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      saveImage();
-    } else if (event.key === "l" && event.ctrlKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (localStorage.getItem("lockedSeed")) {
-        unlockSeed();
-        pushNewSeed();
-      } else {
-        console.log("lock");
-        lockSeed();
+
+      const paneElement = pane?.element;
+      if (paneElement?.contains(event.target as Node)) {
+        return;
       }
-    } else if (event.key === "d" && event.ctrlKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleDebug();
-      localStorage.setItem("debugCanvas", debug ? "1" : "0");
 
-      random.setSeed(seedsHistory[seedIndex]);
-      options = null;
-      frame();
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      event.stopPropagation();
-      loadPreviousSeed();
-    } else if (
-      event.key === "ArrowRight" &&
-      seedIndex < seedsHistory.length - 1
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      loadNextSeed();
-    } else if (event.key === " " || event.key === "ArrowRight") {
-      event.preventDefault();
-      event.stopPropagation();
       pushNewSeed();
-    } else if (event.key === "p") {
-      event.preventDefault();
-      event.stopPropagation();
-      pause = !pause;
-    }
-  });
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "s" && event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        saveImage();
+      } else if (event.key === "l" && event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (localStorage.getItem("lockedSeed")) {
+          unlockSeed();
+          pushNewSeed();
+        } else {
+          console.log("lock");
+          lockSeed();
+        }
+      } else if (event.key === "d" && event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleDebug();
+        localStorage.setItem("debugCanvas", debug ? "1" : "0");
+
+        currentRandom = random.createRandom(seedsHistory[seedIndex]);
+        options = null;
+        frame();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        event.stopPropagation();
+        loadPreviousSeed();
+      } else if (
+        event.key === "ArrowRight" &&
+        seedIndex < seedsHistory.length - 1
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        loadNextSeed();
+      } else if (event.key === " " || event.key === "ArrowRight") {
+        event.preventDefault();
+        event.stopPropagation();
+        pushNewSeed();
+      } else if (event.key === "p") {
+        event.preventDefault();
+        event.stopPropagation();
+        pause = !pause;
+      }
+    });
+  }
 
   await frame(0, 0);
 }
