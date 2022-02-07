@@ -22,7 +22,7 @@ import { CanvasJpSeed } from "./Seed";
 import { CanvasJpRandom } from ".";
 
 export type CanvasJpFill = {
-  color: CanvasJpColorHsv;
+  color: CanvasJpColorHsv | CanvasJpGradient;
   opacity: number;
 };
 export type CanvasJpStroke = {
