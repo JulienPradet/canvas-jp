@@ -54,7 +54,7 @@ export async function canvasJp<Options = null>(
     pane: Pane | null,
     paneOptions: Options
   ) => Options
-) {
+): Promise<() => void> {
   if (embed) {
     exportSketch = false;
   }
@@ -142,6 +142,13 @@ export async function canvasJp<Options = null>(
 
   let options: Options | null;
   let paneOptions: Options;
+  let previousListeners: Array<() => void> | null = null;
+  const removePreviousListeners = () => {
+    if (previousListeners && previousListeners.length) {
+      previousListeners.forEach((listener) => listener());
+      previousListeners = null;
+    }
+  };
 
   const frame = async (t = 0, frameNumber = 0, looping = false) => {
     if (!options && makeStableOptions) {
@@ -169,7 +176,9 @@ export async function canvasJp<Options = null>(
         console.log("drawing...", frameNumber, t);
       }
 
-      await draw(
+      removePreviousListeners();
+
+      previousListeners = await draw(
         ctx,
         definition,
         { height, width, resolution, setSeed: setSeed },
@@ -348,6 +357,8 @@ export async function canvasJp<Options = null>(
   }
 
   await frame(0, 0);
+
+  return removePreviousListeners;
 }
 
 export { CanvasJpFrameDefinition, CanvasJpDrawable, CanvasJpOptions };

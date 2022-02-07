@@ -67,6 +67,7 @@ export const draw = async (
   },
   svgContainer: HTMLElement | null
 ) => {
+  let listeners: Array<() => void> = [];
   let currentTranslate: { x: number; y: number } = { x: 0, y: 0 };
 
   type StylableShape =
@@ -365,9 +366,14 @@ export const draw = async (
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", doSvgShapePath(element.points));
-    path.addEventListener("click", (event) => {
+
+    let listener = (event: MouseEvent) => {
       event.stopPropagation();
       element.onClick();
+    };
+    path.addEventListener("click", listener);
+    listeners.push(() => {
+      path.removeEventListener("click", listener);
     });
     svgContainer.appendChild(path);
   };
@@ -452,4 +458,6 @@ export const draw = async (
 
   await tick();
   ctx.restore();
+
+  return listeners;
 };
