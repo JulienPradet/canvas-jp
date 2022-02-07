@@ -21,6 +21,7 @@ type CanvasJpOptions = {
 export type CanvasJpRandom = {
   getSeed: () => number;
   value: () => number;
+  shuffle: <T>(array: Array<T>) => Array<T>;
   noise2D: (
     x: number,
     y: number,
