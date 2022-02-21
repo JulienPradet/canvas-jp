@@ -65,3 +65,13 @@ export const weightPoint = (
 ): CanvasJpWeightedPoint => {
   return Point(point.x, point.y, weight);
 };
+
+export type CanvasJpPoint3D = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+export const Point3D = (x: number, y: number, z: number): CanvasJpPoint3D => {
+  return { x, y, z };
+};
