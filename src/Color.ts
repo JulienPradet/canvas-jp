@@ -61,12 +61,12 @@ Color.mix = (
 export type CanvasJpGradient = {
   __type: "Gradient";
   colors: CanvasJpColorHsv[];
-  angle: number;
+  angle?: number;
 };
 
 export const Gradient = (
   colors: CanvasJpColorHsv[],
-  angle: number
+  angle?: number
 ): CanvasJpGradient => {
   return {
     __type: "Gradient",

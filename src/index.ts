@@ -1,8 +1,13 @@
 import random from "canvas-sketch-util/random";
 import JSZip from "jszip";
-import { setMaxDistance } from "./constants";
+import { setMaxDistance, eDistance } from "./constants";
 import { debug, toggleDebug } from "./debug";
-import { CanvasJpFrameDefinition, CanvasJpDrawable, draw } from "./draw";
+import {
+  CanvasJpFrameDefinition,
+  CanvasJpDrawable,
+  CanvasJpStrokeStyle,
+  draw,
+} from "./draw";
 import { Pane } from "tweakpane";
 
 type CanvasJpOptions = {
@@ -22,6 +27,9 @@ export type CanvasJpRandom = {
   getSeed: () => number;
   value: () => number;
   shuffle: <T>(array: Array<T>) => Array<T>;
+  pick: <T>(array: Array<T>) => T;
+  gaussian: (mean: number, standardDerivation: number) => number;
+  onSphere: (radius?: number) => [number, number, number];
   noise2D: (
     x: number,
     y: number,
@@ -62,7 +70,7 @@ export async function canvasJp<Options = null>(
 
   const initialSeed = Number(localStorage.getItem("lockedSeed"));
   let isSeedLocked = Boolean(initialSeed);
-  const seedsHistory = [initialSeed || random.getRandomSeed()];
+  const seedsHistory = [initialSeed || Number(random.getRandomSeed())];
   let seedIndex = 0;
   let currentRandom: CanvasJpRandom = random.createRandom(
     seedsHistory[seedIndex]
@@ -362,4 +370,10 @@ export async function canvasJp<Options = null>(
   return removePreviousListeners;
 }
 
-export { CanvasJpFrameDefinition, CanvasJpDrawable, CanvasJpOptions };
+export {
+  CanvasJpFrameDefinition,
+  CanvasJpDrawable,
+  CanvasJpOptions,
+  CanvasJpStrokeStyle,
+  eDistance,
+};

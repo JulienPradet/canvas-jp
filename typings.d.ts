@@ -5,6 +5,9 @@ declare module "canvas-sketch-util/random" {
     getSeed: () => number;
     value: () => number;
     shuffle: <T>(array: Array<T>) => Array<T>;
+    pick: <T>(array: Array<T>) => T;
+    gaussian: (mean: number, standardDerivation: number) => number;
+    onSphere: (radius?: number) => [number, number, number];
     noise2D: (
       x: number,
       y: number,

@@ -31,7 +31,8 @@
     "./Pixel": "./dist/Pixel.js",
     "./Seed": "./dist/Seed.js",
     "./interaction": "./dist/interaction.js",
-    "./ease": "./dist/ease.js"
+    "./ease": "./dist/ease.js",
+    "./probability": "./dist/probability.js"
   },
   "scripts": {
     "prebuild": "rm -rf dist",

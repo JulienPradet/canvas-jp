@@ -58,3 +58,10 @@ export const isPointEqual = (
     Math.abs(pointA.y - pointB.y) < epsilon
   );
 };
+
+export const weightPoint = (
+  point: CanvasJpPoint,
+  weight: number
+): CanvasJpWeightedPoint => {
+  return Point(point.x, point.y, weight);
+};

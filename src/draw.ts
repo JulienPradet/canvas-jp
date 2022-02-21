@@ -25,10 +25,14 @@ export type CanvasJpFill = {
   color: CanvasJpColorHsv | CanvasJpGradient;
   opacity: number;
 };
+export enum CanvasJpStrokeStyle {
+  "round" = "round",
+  "square" = "square",
+}
 export type CanvasJpStroke = {
-  color: CanvasJpColorHsv;
+  color: CanvasJpColorHsv | CanvasJpGradient;
   opacity: number;
-  style: "round" | null;
+  style?: CanvasJpStrokeStyle;
   width: number;
 };
 export type CanvasJpDrawable =
@@ -79,7 +83,7 @@ export const draw = async (
 
   const getShapePoints = (
     shape: StylableShape,
-    angle: number
+    angle: number = 0
   ): CanvasJpPoint[] => {
     if (
       shape.__type === "Shape" ||
@@ -110,6 +114,7 @@ export const draw = async (
     if (color.__type === "Gradient") {
       const points = getShapePoints(shape, color.angle);
       const [lowest, highest] = findExtremumPointsIndex(points, color.angle);
+
       const gradient = ctx.createLinearGradient(
         lowest.x,
         lowest.y,
@@ -140,6 +145,16 @@ export const draw = async (
     }
   };
 
+  const mapStyleToLineCap: { [key in CanvasJpStrokeStyle]: CanvasLineCap } = {
+    round: "round",
+    square: "butt",
+  };
+
+  const mapStyleToLineJoin: { [key in CanvasJpStrokeStyle]: CanvasLineJoin } = {
+    round: "round",
+    square: "miter",
+  };
+
   const setStrokeStyle = (
     stroke: CanvasJpStroke,
     shape: StylableShape
@@ -147,8 +162,8 @@ export const draw = async (
     ctx.globalAlpha = stroke.opacity || 1;
     ctx.strokeStyle = getStyle(stroke.color, shape);
     ctx.lineWidth = stroke.width;
-    ctx.lineCap = stroke.style || "butt";
-    ctx.lineJoin = stroke.style || "miter";
+    ctx.lineCap = stroke.style ? mapStyleToLineCap[stroke.style] : "butt";
+    ctx.lineJoin = stroke.style ? mapStyleToLineJoin[stroke.style] : "miter";
   };
 
   const setFillStyle = (fill: CanvasJpFill, shape: StylableShape): void => {
