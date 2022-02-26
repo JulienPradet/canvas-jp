@@ -17,7 +17,7 @@ import { CanvasJpSharpShape, CanvasJpSmoothShape } from "./Shape";
 import { CanvasJpArc } from "./Circle";
 import { CanvasJpSharpLine, CanvasJpSmoothLine } from "./Line";
 import { CanvasJpClip } from "./Clip";
-import { CanvasJpClickRegion } from "./interaction";
+import { CanvasJpClickRegion, CanvasJpEventHandler } from "./interaction";
 import { CanvasJpSeed } from "./Seed";
 import { CanvasJpRandom } from ".";
 
@@ -382,14 +382,22 @@ export const draw = async (
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", doSvgShapePath(element.points));
 
-    let listener = (event: MouseEvent) => {
-      event.stopPropagation();
-      element.onClick();
-    };
-    path.addEventListener("click", listener);
-    listeners.push(() => {
-      path.removeEventListener("click", listener);
-    });
+    element.events.forEach(
+      <K extends keyof HTMLElementEventMap>({
+        on,
+        trigger,
+      }: CanvasJpEventHandler<K>) => {
+        let listener = (event: HTMLElementEventMap[K]) => {
+          event.stopPropagation();
+          trigger(event);
+        };
+        path.addEventListener(on, listener);
+        listeners.push(() => {
+          path.removeEventListener(on, listener);
+        });
+      }
+    );
+
     svgContainer.appendChild(path);
   };
 
