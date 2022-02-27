@@ -1,7 +1,12 @@
 import { angle } from "./angle";
 import { distance } from "./distance";
 import { findExtremumPointsIndex } from "./findExtremumPoints";
-import { CanvasJpTranslate, translate, translateVector } from "./transform";
+import {
+  CanvasJpTranslate,
+  Translate,
+  translate,
+  translateVector,
+} from "./transform";
 import { debug, debugPosition } from "./debug";
 import {
   CanvasJpColorHsv,
@@ -17,7 +22,11 @@ import { CanvasJpSharpShape, CanvasJpSmoothShape } from "./Shape";
 import { CanvasJpArc } from "./Circle";
 import { CanvasJpSharpLine, CanvasJpSmoothLine } from "./Line";
 import { CanvasJpClip } from "./Clip";
-import { CanvasJpClickRegion, CanvasJpEventHandler } from "./interaction";
+import {
+  CanvasJpClickRegion,
+  CanvasJpEventHandler,
+  CanvasJpRenderOnlyWhenVisible,
+} from "./interaction";
 import { CanvasJpSeed } from "./Seed";
 import { CanvasJpRandom } from ".";
 
@@ -44,6 +53,7 @@ export type CanvasJpDrawable =
   | CanvasJpClip
   | CanvasJpTranslate
   | CanvasJpClickRegion
+  | CanvasJpRenderOnlyWhenVisible
   | CanvasJpSeed;
 
 export type CanvasJpFrameDefinition = {
@@ -73,6 +83,32 @@ export const draw = async (
 ) => {
   let listeners: Array<() => void> = [];
   let currentTranslate: { x: number; y: number } = { x: 0, y: 0 };
+
+  var visibilityDrawers: { node: Element; draw: () => void }[] = [];
+  var observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry: IntersectionObserverEntry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+        const visibilityDrawer = visibilityDrawers.find(
+          ({ node }) => node === entry.target
+        );
+        if (!visibilityDrawer) {
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          visibilityDrawer.draw();
+        });
+        observer.unobserve(visibilityDrawer.node);
+      });
+    },
+    {
+      rootMargin: "100px",
+      threshold: 0,
+    }
+  );
 
   type StylableShape =
     | CanvasJpSharpShape
@@ -381,6 +417,7 @@ export const draw = async (
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", doSvgShapePath(element.points));
+    path.setAttribute("data-type", "click");
 
     element.events.forEach(
       <K extends keyof HTMLElementEventMap>({
@@ -399,6 +436,57 @@ export const draw = async (
     );
 
     svgContainer.appendChild(path);
+  };
+
+  const drawRenderOnlyWhenVisible = (
+    element: CanvasJpRenderOnlyWhenVisible
+  ) => {
+    if (!svgContainer) {
+      throw new Error(
+        'You forgot to set the option "interactive: true" on canvas-jp options.'
+      );
+    }
+
+    const div = document.createElement("div");
+    // x="0" y="0" width="100" height="100"
+    const xPositions = element.points.map(({ x }) => x);
+    const xMin = Math.min(...xPositions);
+    const xMax = Math.max(...xPositions);
+    const yPositions = element.points.map(({ y }) => y);
+    const yMin = Math.min(...yPositions);
+    const yMax = Math.max(...yPositions);
+
+    div.setAttribute(
+      "style",
+      `
+        position: absolute;
+        left: ${xMin + currentTranslate.x}px;
+        top: ${height - (yMax + currentTranslate.y)}px;
+        width: ${xMax - xMin}px;
+        height: ${yMax - yMin}px;
+        pointer-events: none;
+      `
+    );
+    // path.setAttribute("d", doSvgShapePath(element.points));
+    div.setAttribute("data-type", "visibility");
+
+    let translate = { ...currentTranslate };
+
+    visibilityDrawers.push({
+      node: div,
+      draw: () => {
+        ctx.save();
+
+        initContext();
+
+        drawTranslate(Translate(translate.x, translate.y, element.elements));
+
+        ctx.restore();
+      },
+    });
+    observer.observe(div);
+
+    svgContainer.after(div);
   };
 
   const drawSeed = (seed: CanvasJpSeed) => {
@@ -431,6 +519,8 @@ export const draw = async (
         drawTranslate(element);
       } else if (element.__type === "ClickRegion") {
         drawClickRegion(element);
+      } else if (element.__type === "RenderOnlyWhenVisible") {
+        drawRenderOnlyWhenVisible(element);
       } else if (element.__type === "Seed") {
         drawSeed(element);
       }
@@ -439,6 +529,12 @@ export const draw = async (
         console.groupEnd();
       }
     });
+  };
+
+  const initContext = () => {
+    const scaleDirection = -1;
+    ctx.translate(0, height * resolution);
+    ctx.scale(resolution, scaleDirection * resolution);
   };
 
   ctx.save();
@@ -452,9 +548,7 @@ export const draw = async (
     svgContainer.innerHTML = "";
   }
 
-  const scaleDirection = -1;
-  ctx.translate(0, height * resolution);
-  ctx.scale(resolution, scaleDirection * resolution);
+  initContext();
 
   const globalShape = Polygon([
     Point(0, 0),

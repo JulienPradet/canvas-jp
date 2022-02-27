@@ -37,6 +37,7 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsc --declaration",
+    "dev": "tsc --declaration --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

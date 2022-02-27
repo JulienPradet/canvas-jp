@@ -1,3 +1,4 @@
+import { CanvasJpDrawable } from ".";
 import { CanvasJpPoint } from "./Point";
 
 export type CanvasJpEventHandler<K extends keyof HTMLElementEventMap> = {
@@ -23,5 +24,22 @@ export const ClickRegion = (
     __type: "ClickRegion",
     points,
     events,
+  };
+};
+
+export type CanvasJpRenderOnlyWhenVisible = {
+  __type: "RenderOnlyWhenVisible";
+  points: CanvasJpPoint[];
+  elements: CanvasJpDrawable[];
+};
+
+export const RenderOnlyWhenVisible = (
+  points: CanvasJpPoint[],
+  elements: CanvasJpDrawable[]
+): CanvasJpRenderOnlyWhenVisible => {
+  return {
+    __type: "RenderOnlyWhenVisible",
+    points,
+    elements,
   };
 };
