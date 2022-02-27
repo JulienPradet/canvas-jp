@@ -105,7 +105,7 @@ export const draw = async (
       });
     },
     {
-      rootMargin: "100px",
+      rootMargin: "200px",
       threshold: 0,
     }
   );
