@@ -36,6 +36,11 @@ export type CanvasJpRandom = {
     frequency?: number,
     amplitude?: number
   ) => number;
+  noise1D: (
+    x: number,
+    frequency?: number,
+    amplitude?: number
+  ) => number;
 };
 
 export async function canvasJp<Options = null>(

@@ -14,6 +14,7 @@ declare module "canvas-sketch-util/random" {
       frequency?: number,
       amplitude?: number
     ) => number;
+    noise1D: (x: number, frequency?: number, amplitude?: number) => number;
   };
   export const getRandomSeed: () => number;
   export const setSeed: (n: number, opt?: {}) => void;
