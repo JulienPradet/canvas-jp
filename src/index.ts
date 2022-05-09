@@ -36,11 +36,7 @@ export type CanvasJpRandom = {
     frequency?: number,
     amplitude?: number
   ) => number;
-  noise1D: (
-    x: number,
-    frequency?: number,
-    amplitude?: number
-  ) => number;
+  noise1D: (x: number, frequency?: number, amplitude?: number) => number;
 };
 
 export async function canvasJp<Options = null>(
@@ -50,7 +46,10 @@ export async function canvasJp<Options = null>(
     frame: number,
     random: CanvasJpRandom,
     options: Options | null
-  ) => Promise<CanvasJpFrameDefinition> | CanvasJpFrameDefinition,
+  ) =>
+    | Promise<CanvasJpFrameDefinition>
+    | Generator<CanvasJpFrameDefinition>
+    | CanvasJpFrameDefinition,
   {
     height,
     width,
@@ -100,11 +99,15 @@ export async function canvasJp<Options = null>(
   container.style.height = `${height}px`;
   container.style.width = `${width}px`;
 
-  canvas.width = width * resolution;
-  canvas.height = height * resolution;
-  canvas.style.transform = `translate(${width * (-resolution / 2 + 0.5)}px, ${
-    height * (-resolution / 2 + 0.5)
-  }px) scale(${1 / resolution}, ${1 / resolution})`;
+  const setCanvasSize = (canvas: HTMLCanvasElement) => {
+    canvas.width = width * resolution;
+    canvas.height = height * resolution;
+    canvas.style.transform = `translate(${width * (-resolution / 2 + 0.5)}px, ${
+      height * (-resolution / 2 + 0.5)
+    }px) scale(${1 / resolution}, ${1 / resolution})`;
+  };
+
+  setCanvasSize(canvas);
 
   const ctx = canvas.getContext("2d");
 
@@ -164,6 +167,27 @@ export async function canvasJp<Options = null>(
     }
   };
 
+  const addCanvas = (canvas: HTMLCanvasElement) => {
+    const canvasId = Math.round(Math.random() * 10000);
+    canvas.classList.add(`canvas-jp-overlay-${canvasId}`);
+    setCanvasSize(canvas);
+
+    container.style.position = "relative";
+    container.appendChild(canvas);
+
+    const style = document.createElement("style");
+    style.innerHTML = `
+        .canvas-jp-overlay-${canvasId} {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+        }
+    `;
+    container.appendChild(style);
+  };
+
   const frame = async (t = 0, frameNumber = 0, looping = false) => {
     if (!options && makeStableOptions) {
       options = makeStableOptions(currentRandom, pane, paneOptions);
@@ -192,12 +216,28 @@ export async function canvasJp<Options = null>(
 
       removePreviousListeners();
 
-      previousListeners = await draw(
-        ctx,
-        definition,
-        { height, width, resolution, setSeed: setSeed },
-        svgElement
-      );
+      if ("elements" in definition) {
+        previousListeners = await draw(
+          ctx,
+          definition,
+          { height, width, resolution, setSeed: setSeed },
+          svgElement,
+          { addCanvas }
+        );
+      } else {
+        previousListeners = [];
+        for (let definitionItem of definition) {
+          previousListeners = previousListeners?.concat(
+            await draw(
+              ctx,
+              definitionItem,
+              { height, width, resolution, setSeed: setSeed },
+              svgElement,
+              { addCanvas }
+            )
+          );
+        }
+      }
 
       if (!looping && exportSketch) {
         exportedUrls.push(canvas.toDataURL("image/png"));

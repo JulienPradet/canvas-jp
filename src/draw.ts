@@ -29,6 +29,8 @@ import {
 } from "./interaction";
 import { CanvasJpSeed } from "./Seed";
 import { CanvasJpRandom } from ".";
+import { CanvasJpOverlay } from "./Overlay";
+import { CanvasJpUpdateImageData } from "./UpdateImageData";
 
 export type CanvasJpFill = {
   color: CanvasJpColorHsv | CanvasJpGradient;
@@ -54,7 +56,9 @@ export type CanvasJpDrawable =
   | CanvasJpTranslate
   | CanvasJpClickRegion
   | CanvasJpRenderOnlyWhenVisible
-  | CanvasJpSeed;
+  | CanvasJpSeed
+  | CanvasJpOverlay
+  | CanvasJpUpdateImageData;
 
 export type CanvasJpFrameDefinition = {
   background?: CanvasJpColorHsv;
@@ -79,7 +83,11 @@ export const draw = async (
       reset: () => void;
     };
   },
-  svgContainer: HTMLElement | null
+  svgContainer: HTMLElement | null,
+  {
+    shouldTick = true,
+    addCanvas,
+  }: { shouldTick?: boolean; addCanvas: (canvas: HTMLCanvasElement) => void }
 ) => {
   let listeners: Array<() => void> = [];
   let currentTranslate: { x: number; y: number } = { x: 0, y: 0 };
@@ -497,6 +505,35 @@ export const draw = async (
     reset();
   };
 
+  const drawOverlay = (overlay: CanvasJpOverlay) => {
+    const overlayCanvas = document.createElement("canvas");
+    const overlayContext = overlayCanvas.getContext("2d");
+    addCanvas(overlayCanvas);
+
+    if (!overlayContext) {
+      console.log("test");
+      throw new Error("uh oh, failed to get canvas context.");
+    }
+
+    draw(
+      overlayContext,
+      {
+        elements: overlay.elements,
+      },
+      { width, height, resolution, setSeed },
+      svgContainer,
+      { shouldTick: false, addCanvas }
+    );
+  };
+
+  const drawImageData = (element: CanvasJpUpdateImageData) => {
+    const imageData = ctx.getImageData(0, 0, width, height);
+
+    element.transform(imageData);
+
+    ctx.putImageData(imageData, 0, 0, 0, 0, width, height);
+  };
+
   const drawElements = (elements: CanvasJpDrawable[]) => {
     elements.forEach((element) => {
       if (debug) {
@@ -523,6 +560,10 @@ export const draw = async (
         drawRenderOnlyWhenVisible(element);
       } else if (element.__type === "Seed") {
         drawSeed(element);
+      } else if (element.__type === "Overlay") {
+        drawOverlay(element);
+      } else if (element.__type === "UpdateImageData") {
+        drawImageData(element);
       }
 
       if (debug) {
@@ -573,7 +614,9 @@ export const draw = async (
     console.groupEnd();
   }
 
-  await tick();
+  if (shouldTick) {
+    await tick();
+  }
   ctx.restore();
 
   return listeners;

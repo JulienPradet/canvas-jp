@@ -1,6 +1,6 @@
 {
   "name": "canvas-jp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "type": "module",
   "main": "./dist/index.d.js",
@@ -23,6 +23,8 @@
     "./position": "./dist/position.js",
     "./Color": "./dist/Color.js",
     "./Clip": "./dist/Clip.js",
+    "./Overlay": "./dist/Overlay.js",
+    "./UpdateImageData": "./dist/UpdateImageData.js",
     "./Shape": "./dist/Shape.js",
     "./Polygon": "./dist/Polygon.js",
     "./Circle": "./dist/Circle.js",
