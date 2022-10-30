@@ -68,7 +68,7 @@ export const findIntersection = (
 
   const options = edges
     .map((edge) => {
-      return getIntersection(edge, Line(start, end));
+      return getIntersection(edge, { start, end });
     })
     .filter(Boolean)
     .filter((intersection) =>

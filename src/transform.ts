@@ -111,7 +111,12 @@ export const rotate = (
     const transformedAngle = angleOfPoint + rotationAngle;
     return translateVector(distance(center, point), transformedAngle, center);
   } else {
-    throw new Error("not implemented yet");
+    const newPoint = rotate(center, rotationAngle, Point(point.x, point.y))
+    return CurvePoint(
+        newPoint.x, newPoint.y,
+        rotate(center, rotationAngle, Point(point.prevControl.x, point.prevControl.y)),
+        rotate(center, rotationAngle, Point(point.nextControl.x, point.nextControl.y))
+    )
   }
 };
 

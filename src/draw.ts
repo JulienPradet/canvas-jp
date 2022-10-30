@@ -1,12 +1,7 @@
 import { angle } from "./angle";
 import { distance } from "./distance";
 import { findExtremumPointsIndex } from "./findExtremumPoints";
-import {
-  CanvasJpTranslate,
-  Translate,
-  translate,
-  translateVector,
-} from "./transform";
+import { CanvasJpTranslate, Translate, translateVector } from "./transform";
 import { debug, debugPosition } from "./debug";
 import {
   CanvasJpColorHsv,
@@ -31,10 +26,14 @@ import { CanvasJpSeed } from "./Seed";
 import { CanvasJpRandom } from ".";
 import { CanvasJpOverlay } from "./Overlay";
 import { CanvasJpUpdateImageData } from "./UpdateImageData";
+import { CanvasJpShader } from "./Shader";
+import { drawShader as _drawShader } from "./drawShader";
 
 export type CanvasJpFill = {
-  color: CanvasJpColorHsv | CanvasJpGradient;
+  color: CanvasJpColorHsv | CanvasJpGradient | CanvasJpRadialGradient;
   opacity: number;
+  compositionOperation?: GlobalCompositeOperation;
+  filter?: string;
 };
 export enum CanvasJpStrokeStyle {
   "round" = "round",
@@ -58,12 +57,14 @@ export type CanvasJpDrawable =
   | CanvasJpRenderOnlyWhenVisible
   | CanvasJpSeed
   | CanvasJpOverlay
-  | CanvasJpUpdateImageData;
+  | CanvasJpUpdateImageData
+  | CanvasJpShader;
 
 export type CanvasJpFrameDefinition = {
   background?: CanvasJpColorHsv;
   border?: CanvasJpStroke;
   elements: CanvasJpDrawable[];
+  shader?: CanvasJpShader;
 };
 
 export const draw = async (
@@ -73,11 +74,13 @@ export const draw = async (
     width,
     height,
     resolution,
+    pixelDensity,
     setSeed,
   }: {
     width: number;
     height: number;
     resolution: number;
+    pixelDensity: number;
     setSeed: (id: number) => {
       random: CanvasJpRandom;
       reset: () => void;
@@ -87,7 +90,12 @@ export const draw = async (
   {
     shouldTick = true,
     addCanvas,
-  }: { shouldTick?: boolean; addCanvas: (canvas: HTMLCanvasElement) => void }
+    setCanvasSize,
+  }: {
+    shouldTick?: boolean;
+    addCanvas: (canvas: HTMLCanvasElement) => void;
+    setCanvasSize: (canvas: HTMLCanvasElement) => void;
+  }
 ) => {
   let listeners: Array<() => void> = [];
   let currentTranslate: { x: number; y: number } = { x: 0, y: 0 };
@@ -132,11 +140,10 @@ export const draw = async (
     if (
       shape.__type === "Shape" ||
       shape.__type === "SmoothShape" ||
-      shape.__type === "SmoothLine"
+      shape.__type === "SmoothLine" ||
+      shape.__type === "Line"
     ) {
       return shape.points;
-    } else if (shape.__type === "Line") {
-      return [shape.start, shape.end];
     } else if (
       shape.__type === "Arc" &&
       shape.startAngle === 0 &&
@@ -213,6 +220,8 @@ export const draw = async (
   const setFillStyle = (fill: CanvasJpFill, shape: StylableShape): void => {
     ctx.globalAlpha = Number.isNaN(fill.opacity) ? 1 : fill.opacity;
     ctx.fillStyle = getStyle(fill.color, shape);
+    ctx.globalCompositeOperation = fill.compositionOperation || "source-over";
+    ctx.filter = fill.filter || "none";
   };
 
   const drawLine = (line: CanvasJpSharpLine): void => {
@@ -221,8 +230,10 @@ export const draw = async (
     }
 
     ctx.beginPath();
-    ctx.moveTo(line.start.x, line.start.y);
-    ctx.lineTo(line.end.x, line.end.y);
+    ctx.moveTo(line.points[0].x, line.points[0].y);
+    line.points.slice(1).forEach((point) => {
+      ctx.lineTo(point.x, point.y);
+    });
 
     setStrokeStyle(line.stroke, line);
     ctx.stroke();
@@ -505,13 +516,16 @@ export const draw = async (
     reset();
   };
 
+  const getImage = (): TexImageSource => {
+    return ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+  };
+
   const drawOverlay = (overlay: CanvasJpOverlay) => {
     const overlayCanvas = document.createElement("canvas");
     const overlayContext = overlayCanvas.getContext("2d");
-    addCanvas(overlayCanvas);
+    setCanvasSize(overlayCanvas);
 
     if (!overlayContext) {
-      console.log("test");
       throw new Error("uh oh, failed to get canvas context.");
     }
 
@@ -520,18 +534,63 @@ export const draw = async (
       {
         elements: overlay.elements,
       },
-      { width, height, resolution, setSeed },
+      { width, height, resolution, pixelDensity, setSeed },
       svgContainer,
-      { shouldTick: false, addCanvas }
+      { shouldTick: false, addCanvas, setCanvasSize }
     );
+
+    ctx.globalCompositeOperation =
+      overlay.compositionOperation || "source-over";
+    ctx.drawImage(overlayCanvas, 0, 0);
+
+    overlayCanvas.remove();
+  };
+
+  const drawShader = (shader: CanvasJpShader) => {
+    const shaderCanvas = document.createElement("canvas");
+    const gl = shaderCanvas.getContext("webgl2");
+    if (!gl) {
+      throw new Error("Failed to initialize gl");
+    }
+    setCanvasSize(shaderCanvas);
+
+    _drawShader(gl, shader, {
+      width: width * resolution * pixelDensity,
+      height: height * resolution * pixelDensity,
+      image: getImage(),
+    });
+
+    ctx.clearRect(
+      0,
+      0,
+      width * resolution * pixelDensity,
+      height * resolution * pixelDensity
+    );
+    ctx.globalCompositeOperation = shader.compositeOperation || "source-over";
+    ctx.drawImage(shaderCanvas, 0, 0);
+
+    shaderCanvas.remove();
   };
 
   const drawImageData = (element: CanvasJpUpdateImageData) => {
-    const imageData = ctx.getImageData(0, 0, width, height);
+    const imageData = ctx.getImageData(
+      0,
+      0,
+      width * resolution * pixelDensity,
+      height * resolution * pixelDensity
+    );
 
     element.transform(imageData);
 
-    ctx.putImageData(imageData, 0, 0, 0, 0, width, height);
+    ctx.putImageData(
+      imageData,
+      0,
+      0,
+      0,
+      0,
+      width * resolution * pixelDensity,
+      height * resolution * pixelDensity
+    );
   };
 
   const drawElements = (elements: CanvasJpDrawable[]) => {
@@ -564,6 +623,8 @@ export const draw = async (
         drawOverlay(element);
       } else if (element.__type === "UpdateImageData") {
         drawImageData(element);
+      } else if (element.__type === "Shader") {
+        drawShader(element);
       }
 
       if (debug) {
@@ -574,8 +635,11 @@ export const draw = async (
 
   const initContext = () => {
     const scaleDirection = -1;
-    ctx.translate(0, height * resolution);
-    ctx.scale(resolution, scaleDirection * resolution);
+    ctx.translate(0, height * resolution * pixelDensity);
+    ctx.scale(
+      resolution * pixelDensity,
+      scaleDirection * resolution * pixelDensity
+    );
   };
 
   ctx.save();

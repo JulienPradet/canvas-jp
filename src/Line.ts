@@ -3,8 +3,7 @@ import { CanvasJpPoint } from "./Point";
 
 export type CanvasJpSharpLine = {
   __type: "Line";
-  start: CanvasJpPoint;
-  end: CanvasJpPoint;
+  points: CanvasJpPoint[];
   stroke?: CanvasJpStroke;
 };
 
@@ -22,8 +21,7 @@ export const Line = (
 ): CanvasJpSharpLine => {
   return {
     __type: "Line",
-    start,
-    end,
+    points: [start, end],
     stroke,
   };
 };
@@ -37,6 +35,17 @@ export const SmoothLine = (
     __type: "SmoothLine",
     points: points,
     smoothness: smoothness,
+    stroke: stroke,
+  };
+};
+
+export const LinePoints = (
+  points: CanvasJpPoint[],
+  stroke?: CanvasJpStroke
+): CanvasJpSharpLine => {
+  return {
+    __type: "Line",
+    points: points,
     stroke: stroke,
   };
 };

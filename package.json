@@ -1,6 +1,6 @@
 {
   "name": "canvas-jp",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "",
   "type": "module",
   "main": "./dist/index.d.js",
@@ -32,9 +32,18 @@
     "./Line": "./dist/Line.js",
     "./Pixel": "./dist/Pixel.js",
     "./Seed": "./dist/Seed.js",
+    "./Shader": "./dist/Shader.js",
     "./interaction": "./dist/interaction.js",
+    "./intersection": "./dist/intersection.js",
     "./ease": "./dist/ease.js",
-    "./probability": "./dist/probability.js"
+    "./edges": "./dist/edges.js",
+    "./probability": "./dist/probability.js",
+    "./plugins/devMode": "./dist/plugins/devMode.js",
+    "./plugins/exportable": "./dist/plugins/exportable.js",
+    "./plugins/seedNavigation": "./dist/plugins/seedNavigation.js",
+    "./plugins/prodMode": "./dist/plugins/prodMode.js",
+    "./plugins/fxhash": "./dist/plugins/fxhash.js",
+    "./plugins/fxhashCollection": "./dist/plugins/fxhashCollection.js"
   },
   "scripts": {
     "prebuild": "rm -rf dist",

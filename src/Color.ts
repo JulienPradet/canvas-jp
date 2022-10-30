@@ -1,3 +1,4 @@
+import { clamp } from "canvas-sketch-util/math";
 import { CanvasJpPoint } from "./Point";
 
 export type CanvasJpColorHsv = {
@@ -5,6 +6,7 @@ export type CanvasJpColorHsv = {
   h: number;
   s: number;
   v: number;
+  a: number;
   hex: () => string;
 };
 
@@ -18,20 +20,26 @@ export type CanvasJpColorHsv = {
 export const Color = (
   hue: number,
   saturation: number,
-  value: number
+  value: number,
+  alpha: number = 1
 ): CanvasJpColorHsv => {
   var hex: string;
   return {
     __type: "Color",
     h: hue,
-    s: Math.min(1, Math.max(0, saturation)),
-    v: Math.min(1, Math.max(0, value)),
+    s: clamp(saturation, 0, 1),
+    v: clamp(value, 0, 1),
+    a: alpha,
     hex: () => {
+      const rgb = hsvToRgb(hue, saturation, value);
+      return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
       if (!hex) {
         try {
-          hex = rgbToHex(hsvToRgb(hue, saturation, value));
+          hex =
+            rgbToHex(hsvToRgb(hue, saturation, value)) +
+            componentToHex(Math.round(alpha * 255));
         } catch (e) {
-          console.log({ h: hue, s: saturation, v: value });
+          console.log({ h: hue, s: saturation, v: value, a: alpha });
           throw e;
         }
       }
@@ -46,15 +54,16 @@ export const Color = (
  * @param factor [0,1] 0 = only a, 1 = only b
  * @returns
  */
-Color.mix = (
+Color.mix = function counterClockwiseMix(
   colorA: CanvasJpColorHsv,
   colorB: CanvasJpColorHsv,
   factor: number
-) => {
+) {
   return Color(
     colorA.h * factor + colorB.h * (1 - factor),
     colorA.s * factor + colorB.s * (1 - factor),
-    colorA.v * factor + colorB.v * (1 - factor)
+    colorA.v * factor + colorB.v * (1 - factor),
+    colorA.a * factor + colorB.a * (1 - factor)
   );
 };
 
@@ -240,3 +249,10 @@ export const white = Color(0, 0, 1);
 export const green = Color(0.25, 1, 1);
 export const cyan = Color(0.5, 1, 1);
 export const red = Color(0, 1, 0.9);
+
+export const colorFromHex = (hex: string) => {
+  const [r, g, b] = new Array(3).fill(null).map((_, index) => {
+    return parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16);
+  });
+  return Color(...rgbToHsv(r, g, b));
+};

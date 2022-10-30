@@ -112,13 +112,13 @@ export const isInPolygon = (
   for (let i = 0; i < polygon.points.length; i++) {
     if (
       getIntersection(
-        longLine,
-        Line(
-          polygon.points[i],
-          polygon.points[
+        { start: longLine.points[0], end: longLine.points[1] },
+        {
+          start: polygon.points[i],
+          end: polygon.points[
             (i + 1 + polygon.points.length) % polygon.points.length
-          ]
-        )
+          ],
+        }
       )
     ) {
       numberOfIntersections++;
